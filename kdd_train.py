@@ -398,3 +398,5 @@ def train():
 	del 訓練資料表
 
 	print(str(datetime.datetime.now()) + "\t訓練結束")
+
+train()
