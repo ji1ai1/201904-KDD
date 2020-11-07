@@ -9,374 +9,392 @@ import pickle
 import random
 import resource
 
-S, H = resource.getrlimit(resource.RLIMIT_AS)
-resource.setrlimit(resource.RLIMIT_AS, (35 * 1024 * 1024 * 1024, H))
+軟, 硬 = resource.getrlimit(resource.RLIMIT_AS)
+resource.setrlimit(resource.RLIMIT_AS, (35 * 1024 * 1024 * 1024, 硬))
 
-Prefix = ""
+目錄 = ""
 def train():
-	def GetChsh(a, b):
-		if b >= 38:
+	print(str(datetime.datetime.now()) + "\t開始")
+
+
+	def 取得城市(經度, 緯度):
+		if 緯度 >= 38:
 			return 1
-		if b >= 29 and b < 33:
+		if 緯度 >= 29 and 緯度 < 33:
 			return 2
-		if b >= 22.9 and b < 25:
+		if 緯度 >= 22.9 and 緯度 < 25:
 			return 3
-		if b < 22.9 and a < 113.72:
+		if 緯度 < 22.9 and 經度 < 113.72:
 			return 3
-		if b < 22.9 and a >= 113.72:
+		if 緯度 < 22.9 and 經度 >= 113.72:
 			return 4
 
 		return 0
 
 
-	def CalUero(a, b, c, d):
-		aa = math.sin(math.pi * (b - d) / 360) ** 2
-		bb = math.sin(math.pi * (a - c) / 360) ** 2
-		cc = math.cos(math.pi * b / 180)
-		dd = math.cos(math.pi * d / 180)
+	def 計算距離(經度甲, 緯度甲, 經度乙, 緯度乙):
+		甲 = math.sin(math.pi * (緯度甲 - 緯度乙) / 360) ** 2
+		乙 = math.sin(math.pi * (經度甲 - 經度乙) / 360) ** 2
+		丙 = math.cos(math.pi * 緯度甲 / 180)
+		丁 = math.cos(math.pi * 緯度乙 / 180)
 
-		return 2 * 6378137 * math.asin((aa + bb * cc * dd) ** 0.5)
+		return 2 * 6378137 * math.asin((甲 + 乙 * 丙 * 丁) ** 0.5)
 
 
-	PDf = pandas.read_csv(Prefix + "data/profiles.csv", dtype=numpy.int32)
-	PDf = PDf.rename({"pid": "P"}, axis=1)
+	用戶表 = pandas.read_csv(目錄 + "data/profiles.csv", dtype=numpy.int32)
+	用戶表 = 用戶表.rename({"pid": "用戶標識"}, axis=1)
 
-	CsQueriesDf = pandas.read_csv(Prefix + "data/test_queries.csv", header=0, names=["Sid", "P", "QiTime", "Qd", "Zd"], dtype={"Sid": numpy.int32, "P": numpy.float32, "QiTime": object, "Qd": object, "Zd": object})
-	CsQueriesDf = CsQueriesDf.fillna(-1)
-	CsQueriesDf["P"] = CsQueriesDf.P.astype(numpy.int32)
-	CsQueriesDf["Qisi"] = pandas.Series([datetime.datetime.strptime(A, "%Y-%m-%d %H:%M:%S").timestamp() for A in CsQueriesDf.QiTime]).astype(numpy.int32)
-	CsQueriesDf["QiYoubi"] = (823543 + (CsQueriesDf.Qisi - 57600 - 14400) // 86400) % 7
-	CsQueriesDf["Qidi"] = (CsQueriesDf.Qisi - 57600) // 86400 - 17865
-	CsQueriesDf["Qihi"] = (CsQueriesDf.Qisi - 57600) // 3600 - 428760
-	CsQueriesDf["QdLong"] = pandas.Series([a.split(",")[0] for a in CsQueriesDf.Qd], dtype=numpy.float32)
-	CsQueriesDf["QdLati"] = pandas.Series([a.split(",")[1] for a in CsQueriesDf.Qd], dtype=numpy.float32)
-	CsQueriesDf["ZdLong"] = pandas.Series([a.split(",")[0] for a in CsQueriesDf.Zd], dtype=numpy.float32)
-	CsQueriesDf["ZdLati"] = pandas.Series([a.split(",")[1] for a in CsQueriesDf.Zd], dtype=numpy.float32)
-	CsQueriesDf["QzDista"] = pandas.Series([CalUero(QdLong, QdLati, ZdLong, ZdLati) for QdLong, QdLati, ZdLong, ZdLati in zip(CsQueriesDf.QdLong, CsQueriesDf.QdLati, CsQueriesDf.ZdLong, CsQueriesDf.ZdLati)]).astype(numpy.float32)
-	CsQueriesDf["Chsh"] = pandas.Series([GetChsh(Long, Lati) for Long, Lati in zip(CsQueriesDf.QdLong, CsQueriesDf.QdLati)]).astype(numpy.int16)
-	CsQueriesDf["ChshP"] = [str(Chsh) + "_" + str(P) for Chsh, P in zip(CsQueriesDf.Chsh, CsQueriesDf.P)]
-	CsQueriesDf = CsQueriesDf.drop(["QiTime"], axis=1)
+	測試查詢表 = pandas.read_csv(目錄 + "data/test_queries.csv", header=0, names=["會話標識", "用戶標識", "請求時間", "起點", "終點"], dtype={"會話標識": numpy.int32, "用戶標識": numpy.float32, "請求時間": object, "起點": object, "終點": object})
+	測試查詢表 = 測試查詢表.fillna(-1)
+	測試查詢表["用戶標識"] = 測試查詢表.用戶標識.astype(numpy.int32)
+	測試查詢表["請求秒序"] = pandas.Series([datetime.datetime.strptime(子, "%Y-%m-%d %H:%M:%S").timestamp() for 子 in 測試查詢表.請求時間]).astype(numpy.int32)
+	測試查詢表["請求曜日"] = (823543 + (測試查詢表.請求秒序 - 57600 - 14400) // 86400) % 7
+	測試查詢表["請求日序"] = (測試查詢表.請求秒序 - 57600) // 86400 - 17865
+	測試查詢表["請求時序"] = (測試查詢表.請求秒序 - 57600) // 3600 - 428760
+	測試查詢表["起點經度"] = pandas.Series([子.split(",")[0] for 子 in 測試查詢表.起點], dtype=numpy.float32)
+	測試查詢表["起點緯度"] = pandas.Series([子.split(",")[1] for 子 in 測試查詢表.起點], dtype=numpy.float32)
+	測試查詢表["終點經度"] = pandas.Series([子.split(",")[0] for 子 in 測試查詢表.終點], dtype=numpy.float32)
+	測試查詢表["終點緯度"] = pandas.Series([子.split(",")[1] for 子 in 測試查詢表.終點], dtype=numpy.float32)
+	測試查詢表["起終距離"] = pandas.Series([計算距離(起點經度, 起點緯度, 終點經度, 終點緯度) for 起點經度, 起點緯度, 終點經度, 終點緯度 in zip(測試查詢表.起點經度, 測試查詢表.起點緯度, 測試查詢表.終點經度, 測試查詢表.終點緯度)]).astype(numpy.float32)
+	測試查詢表["城市"] = pandas.Series([取得城市(經度, 緯度) for 經度, 緯度 in zip(測試查詢表.起點經度, 測試查詢表.起點緯度)]).astype(numpy.int16)
+	測試查詢表["城市用戶標識"] = [str(城市) + "_" + str(用戶標識) for 城市, 用戶標識 in zip(測試查詢表.城市, 測試查詢表.用戶標識)]
+	測試查詢表 = 測試查詢表.drop(["請求時間"], axis=1)
 
-	CsPlansDf = pandas.read_csv(Prefix + "data/test_plans.csv", header=0, names=["Sid", "JiTime", "PlansList"], dtype={"Sid": numpy.int32, "JiTime": object, "PlansList": object})
-	CsPlansDf["Jisi"] = pandas.Series([datetime.datetime.strptime(a, "%Y-%m-%d %H:%M:%S").timestamp() for a in CsPlansDf.JiTime], dtype=numpy.int32)
-	CsPlansDf = CsPlansDf.drop(["JiTime"], axis=1)
+	測試計劃表 = pandas.read_csv(目錄 + "data/test_plans.csv", header=0, names=["會話標識", "計劃時間", "計劃清單"], dtype={"會話標識": numpy.int32, "計劃時間": object, "計劃清單": object})
+	測試計劃表["計劃秒序"] = pandas.Series([datetime.datetime.strptime(子, "%Y-%m-%d %H:%M:%S").timestamp() for 子 in 測試計劃表.計劃時間], dtype=numpy.int32)
+	測試計劃表 = 測試計劃表.drop(["計劃時間"], axis=1)
 
-	CsDf = CsQueriesDf
-	CsDf = CsDf.merge(CsPlansDf, on="Sid", how="left")
-	del CsQueriesDf
-	del CsPlansDf
+	測試表 = 測試查詢表
+	測試表 = 測試表.merge(測試計劃表, on="會話標識", how="left")
+	del 測試查詢表
+	del 測試計劃表
 
-	XlQueriesDf = pandas.concat([
-		pandas.read_csv(Prefix + "data/train_queries_phase1.csv", header=0, names=["Sid", "P", "QiTime", "Qd", "Zd"], dtype={"Sid": numpy.int32, "P": numpy.float32, "QiTime": object, "Qd": object, "Zd": object})
-		, pandas.read_csv(Prefix + "data/train_queries_phase2.csv", header=0, names=["Sid", "P", "QiTime", "Qd", "Zd"], dtype={"Sid": numpy.int32, "P": numpy.float32, "QiTime": object, "Qd": object, "Zd": object})
+	訓練查詢表 = pandas.concat([
+		pandas.read_csv(目錄 + "data/train_queries_phase1.csv", header=0, names=["會話標識", "用戶標識", "請求時間", "起點", "終點"], dtype={"會話標識": numpy.int32, "用戶標識": numpy.float32, "請求時間": object, "起點": object, "終點": object})
+		, pandas.read_csv(目錄 + "data/train_queries_phase2.csv", header=0, names=["會話標識", "用戶標識", "請求時間", "起點", "終點"], dtype={"會話標識": numpy.int32, "用戶標識": numpy.float32, "請求時間": object, "起點": object, "終點": object})
 	]).reset_index(drop=True)
-	XlQueriesDf = XlQueriesDf.fillna(-1)
-	XlQueriesDf["P"] = XlQueriesDf.P.astype(numpy.int32)
-	XlQueriesDf["Qisi"] = pandas.Series([datetime.datetime.strptime(a, "%Y-%m-%d %H:%M:%S").timestamp() for a in XlQueriesDf.QiTime]).astype(numpy.int32)
-	XlQueriesDf["QiYoubi"] = (823543 + (XlQueriesDf.Qisi - 57600 - 14400) // 86400) % 7
-	XlQueriesDf["Qidi"] = (XlQueriesDf.Qisi - 57600) // 86400 - 17865
-	XlQueriesDf["Qihi"] = (XlQueriesDf.Qisi - 57600) // 3600 - 428760
-	XlQueriesDf["QdLong"] = pandas.Series([a.split(",")[0] for a in XlQueriesDf.Qd], dtype=numpy.float32)
-	XlQueriesDf["QdLati"] = pandas.Series([a.split(",")[1] for a in XlQueriesDf.Qd], dtype=numpy.float32)
-	XlQueriesDf["ZdLong"] = pandas.Series([a.split(",")[0] for a in XlQueriesDf.Zd], dtype=numpy.float32)
-	XlQueriesDf["ZdLati"] = pandas.Series([a.split(",")[1] for a in XlQueriesDf.Zd], dtype=numpy.float32)
-	XlQueriesDf["QzDista"] = pandas.Series([CalUero(QdLong, QdLati, ZdLong, ZdLati) for QdLong, QdLati, ZdLong, ZdLati in zip(XlQueriesDf.QdLong, XlQueriesDf.QdLati, XlQueriesDf.ZdLong, XlQueriesDf.ZdLati)], dtype=numpy.float32)
-	XlQueriesDf["Chsh"] = pandas.Series([GetChsh(Long, Lati) for Long, Lati in zip(XlQueriesDf.QdLong, XlQueriesDf.QdLati)], dtype=numpy.int16)
-	XlQueriesDf["ChshP"] = [str(Chsh) + "_" + str(P) for Chsh, P in zip(XlQueriesDf.Chsh, XlQueriesDf.P)]
-	XlQueriesDf = XlQueriesDf.drop(["QiTime"], axis=1)
+	訓練查詢表 = 訓練查詢表.fillna(-1)
+	訓練查詢表["用戶標識"] = 訓練查詢表.用戶標識.astype(numpy.int32)
+	訓練查詢表["請求秒序"] = pandas.Series([datetime.datetime.strptime(子, "%Y-%m-%d %H:%M:%S").timestamp() for 子 in 訓練查詢表.請求時間]).astype(numpy.int32)
+	訓練查詢表["請求曜日"] = (823543 + (訓練查詢表.請求秒序 - 57600 - 14400) // 86400) % 7
+	訓練查詢表["請求日序"] = (訓練查詢表.請求秒序 - 57600) // 86400 - 17865
+	訓練查詢表["請求時序"] = (訓練查詢表.請求秒序 - 57600) // 3600 - 428760
+	訓練查詢表["起點經度"] = pandas.Series([子.split(",")[0] for 子 in 訓練查詢表.起點], dtype=numpy.float32)
+	訓練查詢表["起點緯度"] = pandas.Series([子.split(",")[1] for 子 in 訓練查詢表.起點], dtype=numpy.float32)
+	訓練查詢表["終點經度"] = pandas.Series([子.split(",")[0] for 子 in 訓練查詢表.終點], dtype=numpy.float32)
+	訓練查詢表["終點緯度"] = pandas.Series([子.split(",")[1] for 子 in 訓練查詢表.終點], dtype=numpy.float32)
+	訓練查詢表["起終距離"] = pandas.Series([計算距離(起點經度, 起點緯度, 終點經度, 終點緯度) for 起點經度, 起點緯度, 終點經度, 終點緯度 in zip(訓練查詢表.起點經度, 訓練查詢表.起點緯度, 訓練查詢表.終點經度, 訓練查詢表.終點緯度)], dtype=numpy.float32)
+	訓練查詢表["城市"] = pandas.Series([取得城市(經度, 緯度) for 經度, 緯度 in zip(訓練查詢表.起點經度, 訓練查詢表.起點緯度)], dtype=numpy.int16)
+	訓練查詢表["城市用戶標識"] = [str(城市) + "_" + str(用戶標識) for 城市, 用戶標識 in zip(訓練查詢表.城市, 訓練查詢表.用戶標識)]
+	訓練查詢表 = 訓練查詢表.drop(["請求時間"], axis=1)
 
-	XlClicksDf = pandas.concat([
-		pandas.read_csv(Prefix + "data/train_clicks_phase1.csv", header=0, names=["Sid", "DjTime", "DjMode"], dtype={"Sid": numpy.int32, "JiTime": object, "PlansList": object})
-		, pandas.read_csv(Prefix + "data/train_clicks_phase2.csv", header=0, names=["Sid", "DjTime", "DjMode"], dtype={"Sid": numpy.int32, "JiTime": object, "PlansList": object})
+	訓練點擊表 = pandas.concat([
+		pandas.read_csv(目錄 + "data/train_clicks_phase1.csv", header=0, names=["會話標識", "點擊時間", "點擊方式"], dtype={"會話標識": numpy.int32, "計劃時間": object, "計劃清單": object})
+		, pandas.read_csv(目錄 + "data/train_clicks_phase2.csv", header=0, names=["會話標識", "點擊時間", "點擊方式"], dtype={"會話標識": numpy.int32, "計劃時間": object, "計劃清單": object})
 	]).reset_index(drop=True)
-	XlClicksDf["DjSi"] = pandas.Series([datetime.datetime.strptime(a, "%Y-%m-%d %H:%M:%S").timestamp() for a in XlClicksDf.DjTime], dtype=numpy.int32)
-	XlClicksDf = XlClicksDf.drop(["DjTime"], axis=1)
+	訓練點擊表["點擊秒序"] = pandas.Series([datetime.datetime.strptime(子, "%Y-%m-%d %H:%M:%S").timestamp() for 子 in 訓練點擊表.點擊時間], dtype=numpy.int32)
+	訓練點擊表 = 訓練點擊表.drop(["點擊時間"], axis=1)
 
-	XlPlansDf = pandas.concat([
-		pandas.read_csv(Prefix + "data/train_plans_phase1.csv", header=0, names=["Sid", "JiTime", "PlansList"], dtype={"Sid": numpy.int32, "JiTime": object, "PlansList": object})
-		, pandas.read_csv(Prefix + "data/train_plans_phase2.csv", header=0, names=["Sid", "JiTime", "PlansList"], dtype={"Sid": numpy.int32, "JiTime": object, "PlansList": object})
+	訓練計劃表 = pandas.concat([
+		pandas.read_csv(目錄 + "data/train_plans_phase1.csv", header=0, names=["會話標識", "計劃時間", "計劃清單"], dtype={"會話標識": numpy.int32, "計劃時間": object, "計劃清單": object})
+		, pandas.read_csv(目錄 + "data/train_plans_phase2.csv", header=0, names=["會話標識", "計劃時間", "計劃清單"], dtype={"會話標識": numpy.int32, "計劃時間": object, "計劃清單": object})
 	]).reset_index(drop=True)
-	XlPlansDf["Jisi"] = pandas.Series([datetime.datetime.strptime(a, "%Y-%m-%d %H:%M:%S").timestamp() for a in XlPlansDf.JiTime], dtype=numpy.int32)
-	XlPlansDf = XlPlansDf.drop(["JiTime"], axis=1)
+	訓練計劃表["計劃秒序"] = pandas.Series([datetime.datetime.strptime(子, "%Y-%m-%d %H:%M:%S").timestamp() for 子 in 訓練計劃表.計劃時間], dtype=numpy.int32)
+	訓練計劃表 = 訓練計劃表.drop(["計劃時間"], axis=1)
 
-	XlDf = XlQueriesDf
-	XlDf = XlDf.merge(XlClicksDf, on="Sid", how="left")
-	XlDf = XlDf.merge(XlPlansDf, on="Sid", how="left")
-	XlDf.DjMode = XlDf.DjMode.fillna(0)
-	del XlQueriesDf
-	del XlClicksDf
-	del XlPlansDf
+	訓練表 = 訓練查詢表
+	訓練表 = 訓練表.merge(訓練點擊表, on="會話標識", how="left")
+	訓練表 = 訓練表.merge(訓練計劃表, on="會話標識", how="left")
+	訓練表.點擊方式 = 訓練表.點擊方式.fillna(0)
+	del 訓練查詢表
+	del 訓練點擊表
+	del 訓練計劃表
 	gc.collect()
 
-	TreDf = pandas.concat([
-		CsDf.loc[:, ["Sid", "P", "ChshP", "Qd", "Zd", "QdLong", "QdLati", "ZdLong", "ZdLati", "Chsh", "Qisi", "QiYoubi", "Qidi", "Qihi", "PlansList"]]
-		, XlDf.loc[:, ["Sid", "P", "ChshP", "Qd", "Zd", "QdLong", "QdLati", "ZdLong", "ZdLati", "Chsh", "Qisi", "QiYoubi", "Qidi", "Qihi", "PlansList"]]
+	print(str(datetime.datetime.now()) + "\t完成匯入資料")
+
+	def 計算距離(經度甲, 緯度甲, 經度乙, 緯度乙):
+		甲 = math.sin(math.pi * (緯度甲 - 緯度乙) / 360) ** 2
+		乙 = math.sin(math.pi * (經度甲 - 經度乙) / 360) ** 2
+		丙 = math.cos(math.pi * 緯度甲 / 180)
+		丁 = math.cos(math.pi * 緯度乙 / 180)
+
+		return 2 * 6378137 * math.asin((甲 + 乙 * 丙 * 丁) ** 0.5)
+
+	測訓表 = pandas.concat([
+		測試表.loc[:, ["會話標識", "用戶標識", "城市用戶標識", "起點", "終點", "起點經度", "起點緯度", "終點經度", "終點緯度", "城市", "請求秒序", "請求曜日", "請求日序", "請求時序", "計劃清單"]]
+		, 訓練表.loc[:, ["會話標識", "用戶標識", "城市用戶標識", "起點", "終點", "起點經度", "起點緯度", "終點經度", "終點緯度", "城市", "請求秒序", "請求曜日", "請求日序", "請求時序", "計劃清單"]]
 	]).reset_index(drop=True)
 
-	TrePlansDf = TreDf[~TreDf.PlansList.isna()].reset_index(drop=True)
-	TrePlap = [json.loads(a) for a in TrePlansDf.PlansList]
-	TrePlas = [len(a) for a in TrePlap]
-	TrePlap = [b for a in TrePlap for b in a]
-	TrePlansDf = TrePlansDf.loc[:, ["Sid", "P", "ChshP", "Qd", "Zd", "QiYoubi", "Qidi", "Qihi"]].merge(pandas.DataFrame({
-		"Sid": pandas.Series([b for a in range(len(TrePlas)) for b in TrePlas[a] * [TrePlansDf.Sid[a]]], dtype=numpy.int32)
-		, "PlansIndex": pandas.Series([b for a in TrePlas for b in range(a)], dtype=numpy.int32)
-		, "FaPlansIndex": pandas.Series([a - b for a in TrePlas for b in range(a)], dtype=numpy.int32)
-		, "Dista":  pandas.Series([a["distance"] for a in TrePlap], dtype=numpy.int32)
-		, "Jag":  pandas.Series([a["price"]  if a["price"] != "" else numpy.nan for a in TrePlap]).fillna(0).astype(numpy.int32)
-		, "Iota":  pandas.Series([int(a["eta"]) for a in TrePlap], dtype=numpy.int32)
-		, "JhMode":  pandas.Series([int(a["transport_mode"]) for a in TrePlap], dtype=numpy.int16)
-	}), on="Sid")
-	TreModelingPlansDf = pandas.concat([
-		CsDf.loc[:, ["Sid", "P", "ChshP", "Qd", "Zd", "QiYoubi", "Qidi", "Qihi"]]
-		, XlDf.loc[:, ["Sid", "P", "ChshP", "Qd", "Zd", "QiYoubi", "Qidi", "Qihi"]]
+	測訓計劃表 = 測訓表[~測訓表.計劃清單.isna()].reset_index(drop=True)
+	測訓計劃解析 = [json.loads(甲) for 甲 in 測訓計劃表.計劃清單]
+	測訓計劃數 = [len(甲) for 甲 in 測訓計劃解析]
+	測訓計劃解析 = [乙 for 甲 in 測訓計劃解析 for 乙 in 甲]
+	測訓計劃表 = 測訓計劃表.loc[:, ["會話標識", "用戶標識", "城市用戶標識", "起點", "終點", "請求曜日", "請求日序", "請求時序"]].merge(pandas.DataFrame({
+		"會話標識": pandas.Series([乙 for 甲 in range(len(測訓計劃數)) for 乙 in 測訓計劃數[甲] * [測訓計劃表.會話標識[甲]]], dtype=numpy.int32)
+		, "計劃序號": pandas.Series([乙 for 甲 in 測訓計劃數 for 乙 in range(甲)], dtype=numpy.int32)
+		, "反計劃序號": pandas.Series([甲 - 乙 for 甲 in 測訓計劃數 for 乙 in range(甲)], dtype=numpy.int32)
+		, "距離":  pandas.Series([甲["distance"] for 甲 in 測訓計劃解析], dtype=numpy.int32)
+		, "價格":  pandas.Series([甲["price"]  if 甲["price"] != "" else numpy.nan for 甲 in 測訓計劃解析]).fillna(0).astype(numpy.int32)
+		, "預計到達時間":  pandas.Series([int(甲["eta"]) for 甲 in 測訓計劃解析], dtype=numpy.int32)
+		, "計劃方式":  pandas.Series([int(甲["transport_mode"]) for 甲 in 測訓計劃解析], dtype=numpy.int16)
+	}), on="會話標識")
+	測訓方式0計劃表 = pandas.concat([
+		測試表.loc[:, ["會話標識", "用戶標識", "城市用戶標識", "起點", "終點", "請求曜日", "請求日序", "請求時序"]]
+		, 訓練表.loc[:, ["會話標識", "用戶標識", "城市用戶標識", "起點", "終點", "請求曜日", "請求日序", "請求時序"]]
 	])
-	TreModelingPlansDf["PlansIndex"] = -1
-	TreModelingPlansDf["FaPlansIndex"] = -1
-	TreModelingPlansDf["Dista"] = -1
-	TreModelingPlansDf["Jag"] = -1
-	TreModelingPlansDf["Iota"] = -1
-	TreModelingPlansDf["JhMode"] = 0
-	TreModelingPlansDf = TreModelingPlansDf.astype({"PlansIndex": numpy.int32, "FaPlansIndex": numpy.int32, "Dista": numpy.int32, "Jag": numpy.int32, "Iota": numpy.int32, "JhMode": numpy.int16})
-	TrePlansDf = pandas.concat([TrePlansDf, TreModelingPlansDf])
-	del TrePlap
-	del TrePlas
-	del TreModelingPlansDf
+	測訓方式0計劃表["計劃序號"] = -1
+	測訓方式0計劃表["反計劃序號"] = -1
+	測訓方式0計劃表["距離"] = -1
+	測訓方式0計劃表["價格"] = -1
+	測訓方式0計劃表["預計到達時間"] = -1
+	測訓方式0計劃表["計劃方式"] = 0
+	測訓方式0計劃表 = 測訓方式0計劃表.astype({"計劃序號": numpy.int32, "距離": numpy.int32, "價格": numpy.int32, "預計到達時間": numpy.int32, "計劃方式": numpy.int16})
+	測訓計劃表 = pandas.concat([測訓計劃表, 測訓方式0計劃表])
+	del 測訓計劃解析
+	del 測訓計劃數
+	del 測訓方式0計劃表
 	gc.collect()
 
 
-	def GetKestDataDf(noi, hane = []):
-		MTreKestDataDf = TreDf.groupby(noi).agg({"Sid":"count", **{a: "nunique" for a in hane}}).reset_index()
-		MTreKestDataDf = MTreKestDataDf.rename({"Sid": "".join(noi) + "NoVonas", **{a: "".join(noi) + "No" + a + "Count" for a in hane}}, axis=1)
-		for A in range(1, 12):
-			Pref = "".join(noi) + "Mode" + str(A)
-			ADf = TrePlansDf[TrePlansDf.JhMode == A].groupby(noi).agg({"Sid": "nunique", **{a: "nunique" for a in hane}}).reset_index()
-			ADf.rename({"Sid": Pref + "NoVonas", **{a: Pref + "No" + a + "Count" for a in hane}}, axis=1, inplace=True)
-			MTreKestDataDf = MTreKestDataDf.merge(ADf, on=noi, how="left")
-			MTreKestDataDf[Pref + "NoVonasbi"] = MTreKestDataDf[Pref + "NoVonas"] / MTreKestDataDf["".join(noi) + "NoVonas"]
-		MTreKestDataDf = MTreKestDataDf.fillna(0)
-		return MTreKestDataDf
+	def 線下二取得統計資料表(鍵, 屬性 = []):
+		某測訓統計資料表 = 測訓表.groupby(鍵).agg({"會話標識":"count", **{甲: "nunique" for 甲 in 屬性}}).reset_index()
+		某測訓統計資料表 = 某測訓統計資料表.rename({"會話標識": "".join(鍵) + "之記錄數", **{甲: "".join(鍵) + "之" + 甲 + "數" for 甲 in 屬性}}, axis=1)
+		for 子 in range(1, 12):
+			前綴 = "".join(鍵) + "方式" + str(子)
+			子表 = 測訓計劃表[測訓計劃表.計劃方式 == 子].groupby(鍵).agg({"會話標識": "nunique", **{甲: "nunique" for 甲 in 屬性}}).reset_index()
+			子表.rename({"會話標識": 前綴 + "之記錄數", **{甲: 前綴 + "之" + 甲 + "數" for 甲 in 屬性}}, axis=1, inplace=True)
+			某測訓統計資料表 = 某測訓統計資料表.merge(子表, on=鍵, how="left")
+			某測訓統計資料表[前綴 + "之記錄比例"] = 某測訓統計資料表[前綴 + "之記錄數"] / 某測訓統計資料表["".join(鍵) + "之記錄數"]
+		某測訓統計資料表 = 某測訓統計資料表.fillna(0)
+		return 某測訓統計資料表
 
-	TreQdKestDataDf = GetKestDataDf(["Qd"], ["ChshP"])
-	TreZdKestDataDf = GetKestDataDf(["Zd"], ["ChshP"])
-	TreQdZdKestDataDf = GetKestDataDf(["Qd", "Zd"], ["ChshP"])
-	TrePKestDataDf = GetKestDataDf(["ChshP"], [])
-	TrePQdKestDataDf = GetKestDataDf(["ChshP", "Qd"], [])
-	TrePZdKestDataDf = GetKestDataDf(["ChshP", "Zd"], [])
-	TrePQdZdKestDataDf = GetKestDataDf(["ChshP", "Qd", "Zd"])
+	測訓起點統計資料表 = 線下二取得統計資料表(["起點"], ["城市用戶標識"])
+	測訓終點統計資料表 = 線下二取得統計資料表(["終點"], ["城市用戶標識"])
+	測訓起點終點統計資料表 = 線下二取得統計資料表(["起點", "終點"], ["城市用戶標識"])
+	測訓用戶標識統計資料表 = 線下二取得統計資料表(["城市用戶標識"], [])
+	測訓用戶標識起點統計資料表 = 線下二取得統計資料表(["城市用戶標識", "起點"], [])
+	測訓用戶標識終點統計資料表 = 線下二取得統計資料表(["城市用戶標識", "終點"], [])
+	測訓用戶標識起點終點統計資料表 = 線下二取得統計資料表(["城市用戶標識", "起點", "終點"])
 
-	def GetSestDataDf(noi, hane=[]):
-		MTreSestDataDf = TreDf.groupby(noi).agg({"Sid": "count", **{a: "nunique" for a in hane}}).reset_index()
-		MTreSestDataDf = MTreSestDataDf.astype({"Sid": numpy.float32, **{a: numpy.float32 for a in hane}})
-		MTreSestDataDf.rename({"Sid": "".join(noi) + "NoVonas", **{a: "".join(noi) + "No" + a + "Count" for a in hane}}, axis=1, inplace=True)
-		MTreSestDataDf = MTreSestDataDf.fillna(0)
-		return MTreSestDataDf
+	def 取得第二統計資料表(鍵, 屬性=[]):
+		某測訓第二統計資料表 = 測訓表.groupby(鍵).agg({"會話標識": "count", **{甲: "nunique" for 甲 in 屬性}}).reset_index()
+		某測訓第二統計資料表 = 某測訓第二統計資料表.astype({"會話標識": numpy.float32, **{甲: numpy.float32 for 甲 in 屬性}})
+		某測訓第二統計資料表.rename({"會話標識": "".join(鍵) + "之記錄數", **{甲: "".join(鍵) + "之" + 甲 + "數" for 甲 in 屬性}}, axis=1, inplace=True)
+		某測訓第二統計資料表 = 某測訓第二統計資料表.fillna(0)
+		return 某測訓第二統計資料表
 
-	TreQidiDataDf = GetSestDataDf(["Qidi"], ["ChshP", "Qd", "Zd"])
-	TreQdQidiDataDf = GetSestDataDf(["Qd", "Qidi"], ["ChshP", "Zd"])
-	TreZdQidiDataDf = GetSestDataDf(["Zd", "Qidi"], ["ChshP", "Qd"])
-	TreQdZdQidiDataDf = GetSestDataDf(["Qd", "Zd", "Qidi"], ["ChshP"])
-	TrePQidiDataDf = GetSestDataDf(["ChshP", "Qidi"], ["Qd", "Zd"])
-	TrePQdQidiDataDf = GetSestDataDf(["ChshP", "Qd", "Qidi"], ["Zd"])
-	TrePZdQidiDataDf = GetSestDataDf(["ChshP", "Zd", "Qidi"], ["Qd"])
-	TrePQdZdQidiDataDf = GetSestDataDf(["ChshP", "Qd", "Zd", "Qidi"])
+	測訓請求日序資料表 = 取得第二統計資料表(["請求日序"], ["城市用戶標識", "起點", "終點"])
+	測訓起點請求日序資料表 = 取得第二統計資料表(["起點", "請求日序"], ["城市用戶標識", "終點"])
+	測訓終點請求日序資料表 = 取得第二統計資料表(["終點", "請求日序"], ["城市用戶標識", "起點"])
+	測訓起點終點請求日序資料表 = 取得第二統計資料表(["起點", "終點", "請求日序"], ["城市用戶標識"])
+	測訓用戶標識請求日序資料表 = 取得第二統計資料表(["城市用戶標識", "請求日序"], ["起點", "終點"])
+	測訓用戶標識起點請求日序資料表 = 取得第二統計資料表(["城市用戶標識", "起點", "請求日序"], ["終點"])
+	測訓用戶標識終點請求日序資料表 = 取得第二統計資料表(["城市用戶標識", "終點", "請求日序"], ["起點"])
+	測訓用戶標識起點終點請求日序資料表 = 取得第二統計資料表(["城市用戶標識", "起點", "終點", "請求日序"])
 
-	TreQihiDataDf = GetSestDataDf(["Qihi"], ["ChshP", "Qd", "Zd"])
-	TreQdQihiDataDf = GetSestDataDf(["Qd", "Qihi"], ["ChshP", "Zd"])
-	TreZdQihiDataDf = GetSestDataDf(["Zd", "Qihi"], ["ChshP", "Qd"])
-	TreQdZdQihiDataDf = GetSestDataDf(["Qd", "Zd", "Qihi"], ["ChshP"])
-	TrePQihiDataDf = GetSestDataDf(["ChshP", "Qihi"], ["Qd", "Zd"])
-	TrePQdQihiDataDf = GetSestDataDf(["ChshP", "Qd", "Qihi"], ["Zd"])
-	TrePZdQihiDataDf = GetSestDataDf(["ChshP", "Zd", "Qihi"], ["Qd"])
-	TrePQdZdQihiDataDf = GetSestDataDf(["ChshP", "Qd", "Zd", "Qihi"])
+	測訓請求時序資料表 = 取得第二統計資料表(["請求時序"], ["城市用戶標識", "起點", "終點"])
+	測訓起點請求時序資料表 = 取得第二統計資料表(["起點", "請求時序"], ["城市用戶標識", "終點"])
+	測訓終點請求時序資料表 = 取得第二統計資料表(["終點", "請求時序"], ["城市用戶標識", "起點"])
+	測訓起點終點請求時序資料表 = 取得第二統計資料表(["起點", "終點", "請求時序"], ["城市用戶標識"])
+	測訓用戶標識請求時序資料表 = 取得第二統計資料表(["城市用戶標識", "請求時序"], ["起點", "終點"])
+	測訓用戶標識起點請求時序資料表 = 取得第二統計資料表(["城市用戶標識", "起點", "請求時序"], ["終點"])
+	測訓用戶標識終點請求時序資料表 = 取得第二統計資料表(["城市用戶標識", "終點", "請求時序"], ["起點"])
+	測訓用戶標識起點終點請求時序資料表 = 取得第二統計資料表(["城市用戶標識", "起點", "終點", "請求時序"])
 
-	def GetAbDataDf(noi, hane = []):
-		MTreAbDataDf = TreDf.loc[:, noi + ["Sid", "Qisi", "QdLong", "QdLati", "ZdLong", "ZdLati"]]
-		MTreAbDataDf["Quera"] = MTreAbDataDf.groupby(noi).Qisi.rank()
+	def 取得鄰資料表(鍵, 屬性 = []):
+		某測訓鄰資料表 = 測訓表.loc[:, 鍵 + ["會話標識", "請求秒序", "起點經度", "起點緯度", "終點經度", "終點緯度"]]
+		某測訓鄰資料表["請求序"] = 某測訓鄰資料表.groupby(鍵).請求秒序.rank()
 
-		MTreMaeAbDataDf = MTreAbDataDf.loc[:, noi + ["Qisi", "QdLong", "QdLati", "ZdLong", "ZdLati", "Quera"]]
-		MTreMaeAbDataDf.rename({"Qisi": "MaeAbQisi", "QdLong": "MaeAbQdLong", "QdLati": "MaeAbQdLati", "ZdLong": "MaeAbZdLong", "ZdLati": "MaeAbZdLati"}, axis=1, inplace=True)
-		MTreMaeAbDataDf["Quera"] = 1 + MTreMaeAbDataDf.Quera
-		MTreUshiroAbDataDf = MTreAbDataDf.loc[:, noi + ["Qisi", "QdLong", "QdLati", "ZdLong", "ZdLati", "Quera"]]
-		MTreUshiroAbDataDf.rename({"Qisi": "UshiroAbQisi", "QdLong": "UshiroAbQdLong", "QdLati": "UshiroAbQdLati", "ZdLong": "UshiroAbZdLong", "ZdLati": "UshiroAbZdLati"}, axis=1, inplace=True)
-		MTreUshiroAbDataDf["Quera"] = MTreUshiroAbDataDf.Quera - 1
+		某測訓前鄰資料表 = 某測訓鄰資料表.loc[:, 鍵 + ["請求秒序", "起點經度", "起點緯度", "終點經度", "終點緯度", "請求序"]]
+		某測訓前鄰資料表.rename({"請求秒序": "前鄰請求秒序", "起點經度": "前鄰起點經度", "起點緯度": "前鄰起點緯度", "終點經度": "前鄰終點經度", "終點緯度": "前鄰終點緯度"}, axis=1, inplace=True)
+		某測訓前鄰資料表["請求序"] = 1 + 某測訓前鄰資料表.請求序
+		某測訓後鄰資料表 = 某測訓鄰資料表.loc[:, 鍵 + ["請求秒序", "起點經度", "起點緯度", "終點經度", "終點緯度", "請求序"]]
+		某測訓後鄰資料表.rename({"請求秒序": "後鄰請求秒序", "起點經度": "後鄰起點經度", "起點緯度": "後鄰起點緯度", "終點經度": "後鄰終點經度", "終點緯度": "後鄰終點緯度"}, axis=1, inplace=True)
+		某測訓後鄰資料表["請求序"] = 某測訓後鄰資料表.請求序 - 1
 
-		MTreAbDataDf = MTreAbDataDf.merge(MTreMaeAbDataDf, on=noi + ["Quera"], how="left")
-		MTreAbDataDf = MTreAbDataDf.merge(MTreUshiroAbDataDf, on=noi + ["Quera"], how="left")
-		MTreAbDataDf["".join(noi) + "NoMaeAbQisch"] = abs(MTreAbDataDf.Qisi - MTreAbDataDf.MaeAbQisi).astype(numpy.float32)
-		MTreAbDataDf["".join(noi) + "NoUshiroAbQisch"] = abs(MTreAbDataDf.UshiroAbQisi - MTreAbDataDf.Qisi).astype(numpy.float32)
+		某測訓鄰資料表 = 某測訓鄰資料表.merge(某測訓前鄰資料表, on=鍵 + ["請求序"], how="left")
+		某測訓鄰資料表 = 某測訓鄰資料表.merge(某測訓後鄰資料表, on=鍵 + ["請求序"], how="left")
+		某測訓鄰資料表["".join(鍵) + "之前鄰請求秒差"] = abs(某測訓鄰資料表.請求秒序 - 某測訓鄰資料表.前鄰請求秒序).astype(numpy.float32)
+		某測訓鄰資料表["".join(鍵) + "之後鄰請求秒差"] = abs(某測訓鄰資料表.後鄰請求秒序 - 某測訓鄰資料表.請求秒序).astype(numpy.float32)
 
-		Exlm = []
-		if "Qd" in hane:
-			MTreAbDataDf["".join(noi) + "NoMaeAbQdDista"] = pandas.Series([CalUero(Long, Lati, MaeLong, MaeLati) for Long, Lati, MaeLong, MaeLati in zip(MTreAbDataDf.QdLong, MTreAbDataDf.QdLati, MTreAbDataDf.MaeAbQdLong, MTreAbDataDf.MaeAbQdLati)], dtype=numpy.float32)
-			MTreAbDataDf["".join(noi) + "NoUshiroAbQdDista"] = pandas.Series([CalUero(Long, Lati, UshiroLong, UshiroLati) for Long, Lati, UshiroLong, UshiroLati in zip(MTreAbDataDf.QdLong, MTreAbDataDf.QdLati, MTreAbDataDf.UshiroAbQdLong, MTreAbDataDf.UshiroAbQdLati)], dtype=numpy.float32)
-			MTreAbDataDf["".join(noi) + "NoMaeAbQdDistabisch"] = 	MTreAbDataDf["".join(noi) + "NoMaeAbQdDista"] / MTreAbDataDf["".join(noi) + "NoMaeAbQisch"]
-			MTreAbDataDf["".join(noi) + "NoUshiroAbQdDistabisch"] = 	MTreAbDataDf["".join(noi) + "NoUshiroAbQdDista"] / MTreAbDataDf["".join(noi) + "NoUshiroAbQisch"]
-			Exlm.extend(["".join(noi) + "NoMaeAbQdDista", "".join(noi) + "NoUshiroAbQdDista", "".join(noi) + "NoMaeAbQdDistabisch", "".join(noi) + "NoUshiroAbQdDistabisch"])
+		額外列名 = []
+		if "起點" in 屬性:
+			某測訓鄰資料表["".join(鍵) + "之前鄰起點距離"] = pandas.Series([計算距離(經度, 緯度, 前經度, 前緯度) for 經度, 緯度, 前經度, 前緯度 in zip(某測訓鄰資料表.起點經度, 某測訓鄰資料表.起點緯度, 某測訓鄰資料表.前鄰起點經度, 某測訓鄰資料表.前鄰起點緯度)], dtype=numpy.float32)
+			某測訓鄰資料表["".join(鍵) + "之後鄰起點距離"] = pandas.Series([計算距離(經度, 緯度, 後經度, 後緯度) for 經度, 緯度, 後經度, 後緯度 in zip(某測訓鄰資料表.起點經度, 某測訓鄰資料表.起點緯度, 某測訓鄰資料表.後鄰起點經度, 某測訓鄰資料表.後鄰起點緯度)], dtype=numpy.float32)
+			某測訓鄰資料表["".join(鍵) + "之前鄰起點距離比秒差"] = 	某測訓鄰資料表["".join(鍵) + "之前鄰起點距離"] / 某測訓鄰資料表["".join(鍵) + "之前鄰請求秒差"]
+			某測訓鄰資料表["".join(鍵) + "之後鄰起點距離比秒差"] = 	某測訓鄰資料表["".join(鍵) + "之後鄰起點距離"] / 某測訓鄰資料表["".join(鍵) + "之後鄰請求秒差"]
+			額外列名.extend(["".join(鍵) + "之前鄰起點距離", "".join(鍵) + "之後鄰起點距離", "".join(鍵) + "之前鄰起點距離比秒差", "".join(鍵) + "之後鄰起點距離比秒差"])
 
-		if "Zd" in hane:
-			MTreAbDataDf["".join(noi) + "NoMaeAbZdDista"] = pandas.Series([CalUero(Long, Lati, UshiroLong, UshiroLati) for Long, Lati, UshiroLong, UshiroLati in zip(MTreAbDataDf.ZdLong, MTreAbDataDf.ZdLati, MTreAbDataDf.MaeAbZdLong, MTreAbDataDf.MaeAbZdLati)], dtype=numpy.float32)
-			MTreAbDataDf["".join(noi) + "NoUshiroAbZdDista"] = pandas.Series([CalUero(Long, Lati, UshiroLong, UshiroLati) for Long, Lati, UshiroLong, UshiroLati in zip(MTreAbDataDf.ZdLong, MTreAbDataDf.ZdLati, MTreAbDataDf.UshiroAbZdLong, MTreAbDataDf.UshiroAbZdLati)], dtype=numpy.float32)
-			MTreAbDataDf["".join(noi) + "NoMaeAbZdDistabisch"] = MTreAbDataDf["".join(noi) + "NoMaeAbZdDista"] / MTreAbDataDf["".join(noi) + "NoMaeAbQisch"]
-			MTreAbDataDf["".join(noi) + "NoUshiroAbZdDistabisch"] = MTreAbDataDf["".join(noi) + "NoUshiroAbZdDista"] / MTreAbDataDf["".join(noi) + "NoUshiroAbQisch"]
-			Exlm.extend(["".join(noi) + "NoMaeAbZdDista", "".join(noi) + "NoUshiroAbZdDista", "".join(noi) + "NoMaeAbZdDistabisch", "".join(noi) + "NoUshiroAbZdDistabisch"])
+		if "終點" in 屬性:
+			某測訓鄰資料表["".join(鍵) + "之前鄰終點距離"] = pandas.Series([計算距離(經度, 緯度, 後經度, 後緯度) for 經度, 緯度, 後經度, 後緯度 in zip(某測訓鄰資料表.終點經度, 某測訓鄰資料表.終點緯度, 某測訓鄰資料表.前鄰終點經度, 某測訓鄰資料表.前鄰終點緯度)], dtype=numpy.float32)
+			某測訓鄰資料表["".join(鍵) + "之後鄰終點距離"] = pandas.Series([計算距離(經度, 緯度, 後經度, 後緯度) for 經度, 緯度, 後經度, 後緯度 in zip(某測訓鄰資料表.終點經度, 某測訓鄰資料表.終點緯度, 某測訓鄰資料表.後鄰終點經度, 某測訓鄰資料表.後鄰終點緯度)], dtype=numpy.float32)
+			某測訓鄰資料表["".join(鍵) + "之前鄰終點距離比秒差"] = 某測訓鄰資料表["".join(鍵) + "之前鄰終點距離"] / 某測訓鄰資料表["".join(鍵) + "之前鄰請求秒差"]
+			某測訓鄰資料表["".join(鍵) + "之後鄰終點距離比秒差"] = 某測訓鄰資料表["".join(鍵) + "之後鄰終點距離"] / 某測訓鄰資料表["".join(鍵) + "之後鄰請求秒差"]
+			額外列名.extend(["".join(鍵) + "之前鄰終點距離", "".join(鍵) + "之後鄰終點距離", "".join(鍵) + "之前鄰終點距離比秒差", "".join(鍵) + "之後鄰終點距離比秒差"])
 
-		MTreAbDataDf = MTreAbDataDf.loc[:, ["Sid", "".join(noi) + "NoMaeAbQisch", "".join(noi) + "NoUshiroAbQisch"] + Exlm]
-		MTreAbDataDf = MTreAbDataDf.fillna(-1)
-		return MTreAbDataDf
+		某測訓鄰資料表 = 某測訓鄰資料表.loc[:, ["會話標識", "".join(鍵) + "之前鄰請求秒差", "".join(鍵) + "之後鄰請求秒差"] + 額外列名]
+		某測訓鄰資料表 = 某測訓鄰資料表.fillna(-1)
+		return 某測訓鄰資料表
 
-	TrePAbDataDf = GetAbDataDf(["ChshP"], ["Qd", "Zd"])
-	TrePQdAbDataDf = GetAbDataDf(["ChshP", "Qd"], ["Zd"])
-	TrePZdAbDataDf = GetAbDataDf(["ChshP", "Zd"], ["Qd"])
-	TrePQdZdAbDataDf = GetAbDataDf(["ChshP", "Qd", "Zd"])
+	測訓用戶標識鄰資料表 = 取得鄰資料表(["城市用戶標識"], ["起點", "終點"])
+	測訓用戶標識起點鄰資料表 = 取得鄰資料表(["城市用戶標識", "起點"], ["終點"])
+	測訓用戶標識終點鄰資料表 = 取得鄰資料表(["城市用戶標識", "終點"], ["起點"])
+	測訓用戶標識起點終點鄰資料表 = 取得鄰資料表(["城市用戶標識", "起點", "終點"])
 
-	TreSessDataDf = TrePlansDf[TrePlansDf.JhMode != 0].groupby("Sid").agg({"JhMode": "count", "Dista": "min", "Jag": numpy.nanmin, "Iota": "min"}).reset_index()
-	TreSessDataDf.rename({"JhMode": "PlanCount", "Dista": "MinDista", "Jag": "MinJag", "Iota": "MinIota"}, axis=1, inplace=True)
-	for A in range(1, 12):
-		Pref = "Mode" + str(A)
-		ADf = TrePlansDf[TrePlansDf.JhMode == A].groupby("Sid").agg({"JhMode": "count", "PlansIndex": "min", "FaPlansIndex": "min", "Dista": "min", "Jag": numpy.nanmin, "Iota": "min"}).reset_index()
-		ADf.rename({"JhMode": Pref + "NoPlanCount", "PlansIndex": Pref + "NoMinPlansIndex", "FaPlansIndex": Pref + "NoMinFaPlansIndex", "Dista": Pref + "NoMinDista", "Jag": Pref + "NoMinJag", "Iota": Pref + "NoMinIota"}, axis=1, inplace=True)
+	測訓會話資料表 = 測訓計劃表[測訓計劃表.計劃方式 != 0].groupby("會話標識").agg({"計劃方式": "count", "距離": "min", "價格": numpy.nanmin, "預計到達時間": "min"}).reset_index()
+	測訓會話資料表.rename({"計劃方式": "計劃數", "距離": "最小距離", "價格": "最小價格", "預計到達時間": "最小預計到達時間"}, axis=1, inplace=True)
+	for 子 in range(1, 12):
+		前綴 = "方式" + str(子)
+		子表 = 測訓計劃表[測訓計劃表.計劃方式 == 子].groupby("會話標識").agg({"計劃方式": "count", "計劃序號": "min", "反計劃序號": "min", "距離": "min", "價格": numpy.nanmin, "預計到達時間": "min"}).reset_index()
+		子表.rename({"計劃方式": 前綴 + "之計劃數", "計劃序號": 前綴 + "之最小計劃序號", "反計劃序號": 前綴 + "之最小反計劃序號", "距離": 前綴 + "之最小距離", "價格": 前綴 + "之最小價格", "預計到達時間": 前綴 + "之最小預計到達時間"}, axis=1, inplace=True)
 
-		TreSessDataDf = TreSessDataDf.merge(ADf, on="Sid", how="left")
-		TreSessDataDf[Pref + "NoPlanCountZhbi"] = TreSessDataDf[Pref + "NoPlanCount"] / (1 + TreSessDataDf.PlanCount)
-		TreSessDataDf[Pref + "NoMinDistach"] = TreSessDataDf[Pref + "NoMinDista"] - TreSessDataDf.MinDista
-		TreSessDataDf[Pref + "NoMinJagch"] = TreSessDataDf[Pref + "NoMinJag"] - TreSessDataDf.MinJag
-		TreSessDataDf[Pref + "NoMinIotach"] = TreSessDataDf[Pref + "NoMinIota"] - TreSessDataDf.MinIota
-	for A in [1, 2, 7]:
-		Pref = "Mode" + str(A)
-		ADf = TrePlansDf[TrePlansDf.JhMode == A].groupby("Sid").agg({"PlansIndex": "max", "FaPlansIndex": "max", "Dista": "max", "Jag": numpy.nanmax, "Iota": "max"}).reset_index()
-		ADf.rename({"PlansIndex": Pref + "NoMaxPlansIndex", "FaPlansIndex": Pref + "NoMaxFaPlansIndex", "Dista": Pref + "NoMaxDista", "Jag": Pref + "NoMaxJag", "Iota": Pref + "NoMaxIota"}, axis=1, inplace=True)
-		TreSessDataDf = TreSessDataDf.merge(ADf, on="Sid", how="left")
-	TreSessDataDf = TreSessDataDf.fillna(-1)
+		測訓會話資料表 = 測訓會話資料表.merge(子表, on="會話標識", how="left")
+		測訓會話資料表[前綴 + "之計劃數佔比"] = 測訓會話資料表[前綴 + "之計劃數"] / (1 + 測訓會話資料表.計劃數)
+		測訓會話資料表[前綴 + "之最小距離差"] = 測訓會話資料表[前綴 + "之最小距離"] - 測訓會話資料表.最小距離
+		測訓會話資料表[前綴 + "之最小價格差"] = 測訓會話資料表[前綴 + "之最小價格"] - 測訓會話資料表.最小價格
+		測訓會話資料表[前綴 + "之最小預計到達時間差"] = 測訓會話資料表[前綴 + "之最小預計到達時間"] - 測訓會話資料表.最小預計到達時間
+	for 子 in [1, 2, 7]:
+		前綴 = "方式" + str(子)
+		子表 = 測訓計劃表[測訓計劃表.計劃方式 == 子].groupby("會話標識").agg({"計劃序號": "max", "反計劃序號": "max", "距離": "max", "價格": numpy.nanmax, "預計到達時間": "max"}).reset_index()
+		子表.rename({"計劃序號": 前綴 + "之最大計劃序號", "反計劃序號": 前綴 + "之最大反計劃序號", "距離": 前綴 + "之最大距離", "價格": 前綴 + "之最大價格", "預計到達時間": 前綴 + "之最大預計到達時間"}, axis=1, inplace=True)
+		測訓會話資料表 = 測訓會話資料表.merge(子表, on="會話標識", how="left")
+	測訓會話資料表 = 測訓會話資料表.fillna(-1)
 
-	def GetDataDf(MDf):
-		if "DjMode" not in MDf:
-			MDf["DjMode"] = numpy.nan
-		MDataDf = MDf.loc[:, ["Sid", "DjMode", "P", "ChshP", "Qd", "Zd", "QdLong", "QdLati", "ZdLong", "ZdLati", "QzDista", "Qisi", "Qidi", "Qihi", "Jisi"]]
-		MDataDf["Iosta"] = MDataDf.Jisi - MDataDf.Qisi
-		MDataDf["Iostb"] = (MDataDf.Qisi - 57600 - 14400) % 86400
-		MDataDf["Iostc"] = (MDataDf.Jisi - 57600 - 14400) % 86400
+	def 取得資料表(某表):
+		if "點擊方式" not in 某表:
+			某表["點擊方式"] = numpy.nan
+		#某資料表 = 某表.loc[:, ["會話標識", "點擊方式", "用戶標識", "城市用戶標識", "起點", "終點", "起點經度", "起點緯度", "終點經度", "終點緯度", "起終距離", "請求秒序", "請求曜日", "請求日序", "請求時序", "計劃秒序"]]
+		某資料表 = 某表.loc[:, ["會話標識", "點擊方式", "用戶標識", "城市用戶標識", "起點", "終點", "起點經度", "起點緯度", "終點經度", "終點緯度", "起終距離", "請求秒序", "請求日序", "請求時序", "計劃秒序"]]
+		某資料表["請求計劃秒差"] = 某資料表.計劃秒序 - 某資料表.請求秒序
+		某資料表["請求日之秒序"] = (某資料表.請求秒序 - 57600 - 14400) % 86400
+		某資料表["計劃日之秒序"] = (某資料表.計劃秒序 - 57600 - 14400) % 86400
 
-		MDataDf = MDataDf.merge(PDf, on="P", how="left")
-		MDataDf = MDataDf.merge(TreQdKestDataDf, on="Qd", how="left")
-		MDataDf = MDataDf.merge(TreZdKestDataDf, on="Zd", how="left")
-		MDataDf = MDataDf.merge(TreQdZdKestDataDf, on=["Qd", "Zd"], how="left")
-		MDataDf = MDataDf.merge(TrePKestDataDf, on="ChshP", how="left")
-		MDataDf = MDataDf.merge(TrePQdKestDataDf, on=["ChshP", "Qd"], how="left")
-		MDataDf = MDataDf.merge(TrePZdKestDataDf, on=["ChshP", "Zd"], how="left")
-		MDataDf = MDataDf.merge(TrePQdZdKestDataDf, on=["ChshP", "Qd", "Zd"], how="left")
+		某資料表 = 某資料表.merge(用戶表, on="用戶標識", how="left")
+		某資料表 = 某資料表.merge(測訓起點統計資料表, on="起點", how="left")
+		某資料表 = 某資料表.merge(測訓終點統計資料表, on="終點", how="left")
+		某資料表 = 某資料表.merge(測訓起點終點統計資料表, on=["起點", "終點"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識統計資料表, on="城市用戶標識", how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點統計資料表, on=["城市用戶標識", "起點"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識終點統計資料表, on=["城市用戶標識", "終點"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點終點統計資料表, on=["城市用戶標識", "起點", "終點"], how="left")
 
-		MDataDf = MDataDf.merge(TreQidiDataDf, on=["Qidi"], how="left")
-		MDataDf = MDataDf.merge(TreQdQidiDataDf, on=["Qd", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TreZdQidiDataDf, on=["Zd", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TreQdZdQidiDataDf, on=["Qd", "Zd", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TrePQidiDataDf, on=["ChshP", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TrePQdQidiDataDf, on=["ChshP", "Qd", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TrePZdQidiDataDf, on=["ChshP", "Zd", "Qidi"], how="left")
-		MDataDf = MDataDf.merge(TrePQdZdQidiDataDf, on=["ChshP", "Qd", "Zd", "Qidi"], how="left")
+		某資料表 = 某資料表.merge(測訓請求日序資料表, on=["請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓起點請求日序資料表, on=["起點", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓終點請求日序資料表, on=["終點", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓起點終點請求日序資料表, on=["起點", "終點", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識請求日序資料表, on=["城市用戶標識", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點請求日序資料表, on=["城市用戶標識", "起點", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識終點請求日序資料表, on=["城市用戶標識", "終點", "請求日序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點終點請求日序資料表, on=["城市用戶標識", "起點", "終點", "請求日序"], how="left")
 
-		MDataDf = MDataDf.merge(TreQihiDataDf, on=["Qihi"], how="left")
-		MDataDf = MDataDf.merge(TreQdQihiDataDf, on=["Qd", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TreZdQihiDataDf, on=["Zd", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TreQdZdQihiDataDf, on=["Qd", "Zd", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TrePQihiDataDf, on=["ChshP", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TrePQdQihiDataDf, on=["ChshP", "Qd", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TrePZdQihiDataDf, on=["ChshP", "Zd", "Qihi"], how="left")
-		MDataDf = MDataDf.merge(TrePQdZdQihiDataDf, on=["ChshP", "Qd", "Zd", "Qihi"], how="left")
+		某資料表 = 某資料表.merge(測訓請求時序資料表, on=["請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓起點請求時序資料表, on=["起點", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓終點請求時序資料表, on=["終點", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓起點終點請求時序資料表, on=["起點", "終點", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識請求時序資料表, on=["城市用戶標識", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點請求時序資料表, on=["城市用戶標識", "起點", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識終點請求時序資料表, on=["城市用戶標識", "終點", "請求時序"], how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點終點請求時序資料表, on=["城市用戶標識", "起點", "終點", "請求時序"], how="left")
 
-		MDataDf = MDataDf.merge(TrePAbDataDf, on="Sid", how="left")
-		MDataDf = MDataDf.merge(TrePQdAbDataDf, on="Sid", how="left")
-		MDataDf = MDataDf.merge(TrePZdAbDataDf, on="Sid", how="left")
-		MDataDf = MDataDf.merge(TrePQdZdAbDataDf, on="Sid", how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識鄰資料表, on="會話標識", how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點鄰資料表, on="會話標識", how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識終點鄰資料表, on="會話標識", how="left")
+		某資料表 = 某資料表.merge(測訓用戶標識起點終點鄰資料表, on="會話標識", how="left")
 
-		MDataDf = MDataDf.merge(TreSessDataDf, on="Sid", how="left")
-		MDataDf.drop(["P", "ChshP", "Qd", "Zd", "Qidi", "Qihi", "Qisi", "Jisi", "p11", "p18"], axis=1, inplace=True)
+		某資料表 = 某資料表.merge(測訓會話資料表, on="會話標識", how="left")
+		某資料表.drop(["用戶標識", "城市用戶標識", "起點", "終點", "請求日序", "請求時序", "請求秒序", "計劃秒序", "p11", "p18"], axis=1, inplace=True)
 
-		return MDataDf
+		return 某資料表
 
-	CsDataDf = GetDataDf(CsDf)
-	XlDataDf = GetDataDf(XlDf)
+	測試資料表 = 取得資料表(測試表)
+	訓練資料表 = 取得資料表(訓練表)
 
-	del CsDf
-	del XlDf
-	del TreDf
-	del PDf
-	del TreQdKestDataDf
-	del TreZdKestDataDf
-	del TreQdZdKestDataDf
-	del TrePKestDataDf
-	del TrePQdKestDataDf
-	del TrePZdKestDataDf
-	del TrePQdZdKestDataDf
+	print(str(datetime.datetime.now()) + "\t完成提取特征預備，共" + str(訓練資料表.shape[1]) + "欄")
+	del 測試表
+	del 訓練表
+	del 測訓表
+	del 用戶表
+	del 測訓起點統計資料表
+	del 測訓終點統計資料表
+	del 測訓起點終點統計資料表
+	del 測訓用戶標識統計資料表
+	del 測訓用戶標識起點統計資料表
+	del 測訓用戶標識終點統計資料表
+	del 測訓用戶標識起點終點統計資料表
 
-	del TreQidiDataDf
-	del TreQdQidiDataDf
-	del TreZdQidiDataDf
-	del TreQdZdQidiDataDf
-	del TrePQidiDataDf
-	del TrePQdQidiDataDf
-	del TrePZdQidiDataDf
-	del TrePQdZdQidiDataDf
+	del 測訓請求日序資料表
+	del 測訓起點請求日序資料表
+	del 測訓終點請求日序資料表
+	del 測訓起點終點請求日序資料表
+	del 測訓用戶標識請求日序資料表
+	del 測訓用戶標識起點請求日序資料表
+	del 測訓用戶標識終點請求日序資料表
+	del 測訓用戶標識起點終點請求日序資料表
 
-	del TreQihiDataDf
-	del TreQdQihiDataDf
-	del TreZdQihiDataDf
-	del TreQdZdQihiDataDf
-	del TrePQihiDataDf
-	del TrePQdQihiDataDf
-	del TrePZdQihiDataDf
-	del TrePQdZdQihiDataDf
+	del 測訓請求時序資料表
+	del 測訓起點請求時序資料表
+	del 測訓終點請求時序資料表
+	del 測訓起點終點請求時序資料表
+	del 測訓用戶標識請求時序資料表
+	del 測訓用戶標識起點請求時序資料表
+	del 測訓用戶標識終點請求時序資料表
+	del 測訓用戶標識起點終點請求時序資料表
 
-	del TrePAbDataDf
-	del TrePQdAbDataDf
-	del TrePZdAbDataDf
-	del TrePQdZdAbDataDf
+	del 測訓用戶標識鄰資料表
+	del 測訓用戶標識起點鄰資料表
+	del 測訓用戶標識終點鄰資料表
+	del 測訓用戶標識起點終點鄰資料表
 
-	del TreSessDataDf
+	del 測訓會話資料表
 
-	for Lm in CsDataDf.columns[16:]:
-		if Lm.find("Qidi") >= 0 or Lm.find("Qihi") >= 0:
-			CsDataDf.loc[:, [Lm]] = CsDataDf.loc[:, [Lm]] / CsDataDf.loc[:, [Lm]].mean()
-			XlDataDf.loc[:, [Lm]] = XlDataDf.loc[:, [Lm]] / XlDataDf.loc[:, [Lm]].mean()
+	for 列名 in 測試資料表.columns[16:]:
+		if 列名.find("請求日序") >= 0 or 列名.find("請求時序") >= 0:
+			測試資料表.loc[:, [列名]] = 測試資料表.loc[:, [列名]] / 測試資料表.loc[:, [列名]].mean()
+			訓練資料表.loc[:, [列名]] = 訓練資料表.loc[:, [列名]] / 訓練資料表.loc[:, [列名]].mean()
 
-	CsLabelDf = CsDataDf.loc[:, ["Sid"]]
-	CsDataDf = CsDataDf.drop(["Sid", "DjMode"], axis=1)
-	CsDataDf = CsDataDf.astype({a: numpy.float32 for a, b in zip(CsDataDf.dtypes.index, CsDataDf.dtypes) if b == numpy.float64})
-	CsDataDf = CsDataDf.astype({a: numpy.int32 for a, b in zip(CsDataDf.dtypes.index, CsDataDf.dtypes) if b == numpy.int64})
-	XlLabelDf = XlDataDf.loc[:, ["Sid", "DjMode"]]
-	XlDataDf = XlDataDf.drop(["Sid", "DjMode"], axis=1)
-	XlDataDf = XlDataDf.astype({a: numpy.float32 for a, b in zip(XlDataDf.dtypes.index, XlDataDf.dtypes) if b == numpy.float64})
-	XlDataDf = XlDataDf.astype({a: numpy.int32 for a, b in zip(XlDataDf.dtypes.index, XlDataDf.dtypes) if b == numpy.int64})
+	測試標籤表 = 測試資料表.loc[:, ["會話標識"]]
+	測試資料表 = 測試資料表.drop(["會話標識", "點擊方式"], axis=1)
+	測試資料表 = 測試資料表.astype({甲: numpy.float32 for 甲, 乙 in zip(測試資料表.dtypes.index, 測試資料表.dtypes) if 乙 == numpy.float64})
+	測試資料表 = 測試資料表.astype({甲: numpy.int32 for 甲, 乙 in zip(測試資料表.dtypes.index, 測試資料表.dtypes) if 乙 == numpy.int64})
+	訓練標籤表 = 訓練資料表.loc[:, ["會話標識", "點擊方式"]]
+	訓練資料表 = 訓練資料表.drop(["會話標識", "點擊方式"], axis=1)
+	訓練資料表 = 訓練資料表.astype({甲: numpy.float32 for 甲, 乙 in zip(訓練資料表.dtypes.index, 訓練資料表.dtypes) if 乙 == numpy.float64})
+	訓練資料表 = 訓練資料表.astype({甲: numpy.int32 for 甲, 乙 in zip(訓練資料表.dtypes.index, 訓練資料表.dtypes) if 乙 == numpy.int64})
 
-	with open(Prefix + "temp/test_plan", "wb") as file:
-		pickle.dump(TrePlansDf.loc[TrePlansDf.Qidi >= 0, ["Sid", "JhMode"]], file)
-	with open(Prefix + "temp/test_label", "wb") as file:
-		pickle.dump(CsLabelDf, file)
-	with open(Prefix + "temp/test_data", "wb") as file:
-		pickle.dump(CsDataDf, file)
-	del CsLabelDf
-	del CsDataDf
+	with open(目錄 + "temp/test_plan", "wb") as 檔案:
+		pickle.dump(測訓計劃表.loc[測訓計劃表.請求日序 >= 0, ["會話標識", "計劃方式"]], 檔案)
+	with open(目錄 + "temp/test_label", "wb") as 檔案:
+		pickle.dump(測試標籤表, 檔案)
+	with open(目錄 + "temp/test_data", "wb") as 檔案:
+		pickle.dump(測試資料表, 檔案)
+	del 測試標籤表
+	del 測試資料表
 	gc.collect()
 
-	for A in range(12):
-		XlModeALabelDf = XlLabelDf.merge(TrePlansDf.loc[TrePlansDf.JhMode == A, ["Sid"]].drop_duplicates(), on="Sid", right_index=True)
-		XlModeALabelDf["Label"] = (XlModeALabelDf.DjMode == A).astype(numpy.int)
+	print(str(datetime.datetime.now()) + "\t訓練開始")
 
-		XlModeADataDf = XlDataDf.loc[XlModeALabelDf.index.tolist()]
-		XlModeADataset = lightgbm.Dataset(XlModeADataDf, XlModeALabelDf.Label)
-		del XlModeADataDf
+	for 子 in range(12):
+		訓練方式子標籤表 = 訓練標籤表.merge(測訓計劃表.loc[測訓計劃表.計劃方式 == 子, ["會話標識"]].drop_duplicates(), on="會話標識", right_index=True)
+		訓練方式子標籤表["標籤"] = (訓練方式子標籤表.點擊方式 == 子).astype(numpy.int)
+
+		訓練方式子資料表 = 訓練資料表.loc[訓練方式子標籤表.index.tolist()]
+		訓練方式子資料集 = lightgbm.Dataset(訓練方式子資料表, 訓練方式子標籤表.標籤)
+		del 訓練方式子資料表
 		gc.collect()
 
-		Mlgb = lightgbm.train(train_set=XlModeADataset
-			, params={"objective": "binary", "learning_rate": 0.04, "max_depth": 6, "num_leaves": 127, "bagging_fraction": 0.7, "bagging_freq": 1, "bagging_seed": 0, "verbose": -1}
-			, num_boost_round=800
+		輕模型 = lightgbm.train(train_set=訓練方式子資料集
+			, params={"objective": "binary", "learning_rate": 0.05, "max_depth": 6, "num_leaves": 127, "bagging_fraction": 0.7, "bagging_freq": 1, "bagging_seed": 0, "verbose": -1}
+			, num_boost_round=500
 		)
 
-		with open(Prefix + "model/" + str(A), "wb") as file:
-			pickle.dump(Mlgb, file)
-		del XlModeADataset
-		del XlModeALabelDf
+		with open(目錄 + "model/" + str(子), "wb") as 檔案:
+			pickle.dump(輕模型, 檔案)
+		print(str(datetime.datetime.now()) + "\t" + str(子))
+		del 訓練方式子資料集
+		del 訓練方式子標籤表
 
-	del XlLabelDf
-	del XlDataDf
+	del 訓練標籤表
+	del 訓練資料表
 
-
+	print(str(datetime.datetime.now()) + "\t訓練結束")
