@@ -4,42 +4,47 @@ import lightgbm
 import pandas
 import pickle
 
-Prefix = ""
+目錄 = ""
 
 def predict(test_data):
-	with open(Prefix + "temp/test_data", "rb") as file:
-		CsDataDf = pickle.load(file)
-	with open(Prefix + "temp/test_label", "rb") as file:
-		CsLabelDf = pickle.load(file)
-	with open(Prefix + "temp/test_plan", "rb") as file:
-		CsPlansDf = pickle.load(file)
+	with open(目錄 + "temp/test_data", "rb") as 檔案:
+		測試資料表 = pickle.load(檔案)
+	with open(目錄 + "temp/test_label", "rb") as 檔案:
+		測試標籤表 = pickle.load(檔案)
+	with open(目錄 + "temp/test_plan", "rb") as 檔案:
+		測試計劃表 = pickle.load(檔案)
 
-	PrediDf = None
-	for A in range(12):
-		CsModeALabelDf = CsLabelDf.merge(CsPlansDf.loc[CsPlansDf.JhMode == A, ["Sid"]].drop_duplicates(), on="Sid", right_index=True)
-		CsModeALabelDf["Label"] = numpy.nan
-		ModeAPrediDf = CsModeALabelDf.loc[:, ["Sid"]]
-		ModeAPrediDf["Mode"] = A
-		CsModeADataDf = CsDataDf.loc[CsModeALabelDf.index.tolist()]
+	預測原表 = None
+	for 子 in range(12):
+		測試方式子標籤表 = 測試標籤表.merge(測試計劃表.loc[測試計劃表.計劃方式 == 子, ["會話標識"]].drop_duplicates(), on="會話標識", right_index=True)
+		測試方式子標籤表["標籤"] = numpy.nan
+		方式子預測表 = 測試方式子標籤表.loc[:, ["會話標識"]]
+		方式子預測表["方式"] = 子
+		測試方式子資料表 = 測試資料表.loc[測試方式子標籤表.index.tolist()]
 
-		with open(Prefix + "model/" + str(A), "rb") as file:
-			Mlgb = pickle.load(file)
-		ModeAPrediDf["Score"] = Mlgb.predict(CsModeADataDf)
-		del CsModeADataDf
-		PrediDf = pandas.concat([PrediDf, ModeAPrediDf])
-		PrediDf.to_csv("predict", header=None, index=None, quoting=3)
+		with open(目錄 + "model/" + str(子), "rb") as 檔案:
+			輕模型 = pickle.load(檔案)
+		方式子預測表["打分"] = 輕模型.predict(測試方式子資料表)
+		del 測試方式子資料表
+		預測原表 = pandas.concat([預測原表, 方式子預測表])
+	預測原表.to_csv("predict", header=None, index=None, quoting=3)
 
-	Repe = numpy.array([0.76, 0.62, 0.59, 1.77, 2.13, 0.60, 1.31, 0.65, 1.11, 0.77, 0.94, 0.65])
-	PrediDf["SidScore"] = PrediDf.groupby("Sid")["Score"].transform("sum")
-	PrediDf["Score"] = PrediDf["Score"] / PrediDf["SidScore"]
-	PrediDf = PrediDf.drop(["SidScore"], axis=1)
-	for A in range(12):
-		PrediDf.loc[PrediDf.Mode == A, "Score"] = Repe[A] * PrediDf.Score[PrediDf.Mode == A]
-	PrediDf["MaxScore"] = PrediDf.groupby("Sid")["Score"].transform("max")
-	PrediDf = PrediDf.loc[PrediDf.Score == PrediDf.MaxScore]
-	PrediDf = PrediDf.loc[:, ["Sid", "Mode"]].drop_duplicates("Sid").reset_index(drop=True)
+	總係數 = numpy.array([0.76, 0.62, 0.59, 1.77, 2.13, 0.60, 1.31, 0.65, 1.11, 0.77, 0.94, 0.65])
+	預測表 = 預測原表.copy()
+	預測表["會話標識總打分"] = 預測表.groupby("會話標識")["打分"].transform("sum")
+	預測表["打分"] = 預測表["打分"] / 預測表["會話標識總打分"]
+	預測表 = 預測表.drop(["會話標識總打分"], axis=1)
+	預測新表 = 預測表.copy()
+	for 子 in range(12):
+		預測新表.loc[預測新表.方式 == 子, "打分"] = 總係數[子] * 預測新表.打分[預測新表.方式 == 子]
+	預測方式新表 = 預測新表.copy()
+	預測方式新表["最大打分"] = 預測方式新表.groupby("會話標識")["打分"].transform("max")
+	預測方式新表 = 預測方式新表.loc[預測方式新表.打分 == 預測方式新表.最大打分]
+	預測方式新表 = 預測方式新表.loc[:, ["會話標識", "方式"]].drop_duplicates("會話標識").reset_index(drop=True)
 
-	SubDf = PrediDf.copy()
-	SubDf.Sid = SubDf.Sid.astype("object")
-	SubDf.Mode = SubDf.Mode.astype("object")
-	SubDf.to_csv("result/result", header=False, index=False, quoting=1)
+	提交表 = 預測方式新表.copy()
+	提交表.會話標識 = 提交表.會話標識.astype("object")
+	提交表.方式 = 提交表.方式.astype("object")
+	提交表.to_csv("result/result.csv", header=False, index=False, quoting=1)
+
+	print(str(datetime.datetime.now()) + "\t結束")
